@@ -1,1 +1,2 @@
 package domuscontrol.model.dispositivos;
+
