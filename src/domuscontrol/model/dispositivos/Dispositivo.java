@@ -18,7 +18,7 @@ public abstract class Dispositivo implements Serializable, Cloneable {
     private boolean ligado;
     private long tempoTotalLigado;       // tempo total ligado em minutos
     private int numActivacoes;           // vezes que foi ligado
-    private LocalDateTime instanteLigado; // quando foi ligado (null se desligado)
+    private LocalDateTime instanteUltimaAtualizacao; // referência temporal para contabilizar consumo
     private double consumoAcumuladoWh;   // energia total gasta desde sempre
 
     // ==================== Construtores ====================
@@ -31,7 +31,7 @@ public abstract class Dispositivo implements Serializable, Cloneable {
         this.ligado = false;
         this.tempoTotalLigado = 0;
         this.numActivacoes = 0;
-        this.instanteLigado = null;
+        this.instanteUltimaAtualizacao = null;
         this.consumoAcumuladoWh = 0.0;
     }
 
@@ -43,7 +43,7 @@ public abstract class Dispositivo implements Serializable, Cloneable {
         this.ligado = false;
         this.tempoTotalLigado = 0;
         this.numActivacoes = 0;
-        this.instanteLigado = null;
+        this.instanteUltimaAtualizacao = null;
         this.consumoAcumuladoWh = 0.0;
     }
 
@@ -55,7 +55,7 @@ public abstract class Dispositivo implements Serializable, Cloneable {
         this.ligado = outro.isLigado();
         this.tempoTotalLigado = outro.getTempoTotalLigado();
         this.numActivacoes = outro.getNumActivacoes();
-        this.instanteLigado = outro.getInstanteLigado();
+        this.instanteUltimaAtualizacao = outro.getInstanteUltimaAtualizacao();
         this.consumoAcumuladoWh = outro.getConsumoAcumuladoWh();
     }
 
@@ -68,7 +68,7 @@ public abstract class Dispositivo implements Serializable, Cloneable {
     public boolean isLigado() { return this.ligado; }
     public long getTempoTotalLigado() { return this.tempoTotalLigado; }
     public int getNumActivacoes() { return this.numActivacoes; }
-    public LocalDateTime getInstanteLigado() { return this.instanteLigado; }
+    public LocalDateTime getInstanteUltimaAtualizacao() { return this.instanteUltimaAtualizacao; }
     public double getConsumoAcumuladoWh() { return this.consumoAcumuladoWh; }
 
     // ==================== Setters ====================
@@ -90,7 +90,7 @@ public abstract class Dispositivo implements Serializable, Cloneable {
     public void ligar(LocalDateTime agora) {
         if (!this.ligado) {
             this.ligado = true;
-            this.instanteLigado = agora;
+            this.instanteUltimaAtualizacao = agora;
             this.numActivacoes++;
         }
     }
@@ -102,7 +102,7 @@ public abstract class Dispositivo implements Serializable, Cloneable {
         if (this.ligado) {
             acumularConsumo(agora);
             this.ligado = false;
-            this.instanteLigado = null;
+            this.instanteUltimaAtualizacao = null;
         }
     }
 
@@ -111,32 +111,32 @@ public abstract class Dispositivo implements Serializable, Cloneable {
      * Chamado quando o simulador avança o tempo.
      */
     public void actualizarTempo(LocalDateTime agora) {
-        if (this.ligado && this.instanteLigado != null) {
+        if (this.ligado && this.instanteUltimaAtualizacao != null) {
             acumularConsumo(agora);
         }
     }
 
     /**
-     * Acumula o consumo energético do período entre instanteLigado e agora.
+     * Acumula o consumo energético do período entre a última actualização e agora.
      * Usa o getConsumoAtual() para obter o consumo real (que depende do estado).
-     * Deve ser chamado ANTES de alterar qualquer propriedade que afecte o consumo.
+     * Deve ser chamado antes de alterar qualquer propriedade que afecte o consumo.
      * Protegido para que as subclasses possam chamar nos seus setters.
      */
     protected void acumularConsumo(LocalDateTime agora) {
-        if (this.instanteLigado != null) {
-            long minutos = Duration.between(this.instanteLigado, agora).toMinutes();
+        if (this.instanteUltimaAtualizacao != null) {
+            long minutos = Duration.between(this.instanteUltimaAtualizacao, agora).toMinutes();
             if (minutos > 0) {
                 double horas = minutos / 60.0;
                 this.consumoAcumuladoWh += getConsumoAtual() * horas;
                 this.tempoTotalLigado += minutos;
             }
-            this.instanteLigado = agora;
+            this.instanteUltimaAtualizacao = agora;
         }
     }
 
     /**
      * Retorna o consumo total acumulado em kWh.
-     * Usado para estatísticas.
+     * Usado para estatísticas.talvez tenha que somar o consumo do período actual se estiver ligado.
      */
     public double consumoTotalKWh() {
         return this.consumoAcumuladoWh / 1000.0;
